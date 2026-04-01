@@ -1,12 +1,12 @@
 -- @ScriptType: Script
 -- @ScriptType: Script
--- @ScriptType: Script
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EnemyData = require(ReplicatedStorage:WaitForChild("EnemyData"))
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
 local SkillData = require(ReplicatedStorage:WaitForChild("SkillData"))
 local CombatCore = require(script.Parent:WaitForChild("CombatCore"))
+local LootManager = require(script.Parent:WaitForChild("LootManager")) -- [[ NEW: Data Driven Looting ]]
 
 local Network = ReplicatedStorage:FindFirstChild("Network") or Instance.new("Folder", ReplicatedStorage)
 Network.Name = "Network"
@@ -21,19 +21,6 @@ local CombatAction = GetRemote("CombatAction")
 local CombatUpdate = GetRemote("CombatUpdate")
 
 local ActiveBattles = {}
-local MAX_INVENTORY_CAPACITY = 50
-local SellValues = { Common = 10, Uncommon = 25, Rare = 75, Epic = 200, Legendary = 500, Mythical = 1500, Transcendent = 0 }
-
-local function GetUniqueSlotCount(plr)
-	local count = 0
-	for iName, _ in pairs(ItemData.Equipment) do
-		if (plr:GetAttribute(iName:gsub("[^%w]", "") .. "Count") or 0) > 0 then count += 1 end
-	end
-	for iName, _ in pairs(ItemData.Consumables) do
-		if (plr:GetAttribute(iName:gsub("[^%w]", "") .. "Count") or 0) > 0 then count += 1 end
-	end
-	return count
-end
 
 local function UpdateBountyProgress(plr, taskType, amt)
 	for i = 1, 3 do
@@ -189,13 +176,8 @@ local function StartBattle(player, encounterType, requestedPartId)
 	local awakenedStats = ParseAwakenedStats(awakenedString)
 
 	local clanName = player:GetAttribute("Clan") or "None"
-	local baseClan = string.gsub(clanName, "Awakened ", "")
-	local isAwakened = string.find(clanName, "Awakened") ~= nil
-	local tName = player:GetAttribute("Titan") or "None"
 
 	local pMaxHP = ((player:GetAttribute("Health") or 10) + (wpnBonus.Health or 0) + (accBonus.Health or 0)) * 10
-	if baseClan == "Reiss" then pMaxHP = math.floor(pMaxHP * (isAwakened and 2.0 or 1.5)) end
-	if baseClan == "Arlert" and string.find(tName, "Colossal Titan") then pMaxHP = math.floor(pMaxHP * 1.5) end 
 	pMaxHP = pMaxHP + awakenedStats.HpBonus
 
 	local pMaxGas = ((player:GetAttribute("Gas") or 10) + (wpnBonus.Gas or 0) + (accBonus.Gas or 0)) * 10
@@ -256,7 +238,7 @@ local function StartBattle(player, encounterType, requestedPartId)
 		Enemy = {
 			IsMinigame = isMinigame,
 			IsPlayer = false, Name = eTemplate.Name, IsHuman = isPaths and false or (eTemplate.IsHuman or false),
-			IsNightmare = isNightmare, -- [[ FIX: Passes the true/false flag down to CombatCore ]]
+			IsNightmare = isNightmare,
 			HP = eHP, MaxHP = eHP, GateType = eGateType, GateHP = eGateHP, MaxGateHP = eGateHP,
 			TotalStrength = eStr, TotalDefense = eDef, TotalSpeed = eSpd,
 			Statuses = {}, Cooldowns = {}, Skills = eTemplate.Skills or {"Brutal Swipe"},
@@ -313,80 +295,11 @@ local function ProcessEnemyDeath(player, battle)
 	player.leaderstats.Dews.Value += dewsGain
 
 	local killMsg = ""
-	local currentSlots = GetUniqueSlotCount(player)
-	local droppedItems = {}
-	local autoSoldDews = 0
 
-	if battle.Enemy.Drops.ItemChance then
-		for itemName, baseChance in pairs(battle.Enemy.Drops.ItemChance) do
-			local iData = ItemData.Equipment[itemName] or ItemData.Consumables[itemName]
-			local rarity = iData and iData.Rarity or "Common"
-			local finalChance = baseChance
-
-			if rarity == "Mythical" then
-				finalChance = baseChance * 1.0 
-				if battle.Context.IsEndless then finalChance += (battle.Context.CurrentWave * 0.1) end
-				finalChance = math.min(finalChance, math.max(5, baseChance))
-			elseif rarity == "Legendary" then
-				finalChance = baseChance * 1.2
-				if battle.Context.IsEndless then finalChance += (battle.Context.CurrentWave * 0.25) end
-				finalChance = math.min(finalChance, math.max(12, baseChance))
-			elseif rarity == "Epic" then
-				finalChance = baseChance * 2.0
-				if battle.Context.IsEndless then finalChance += (battle.Context.CurrentWave * 1.0) end
-				finalChance = math.min(finalChance, math.max(40, baseChance))
-			else
-				finalChance = baseChance * 3.0
-				if battle.Context.IsEndless then finalChance += (battle.Context.CurrentWave * 2.5) end
-				finalChance = math.min(finalChance, 100)
-			end
-
-			local roll = math.random() * 100
-			if roll <= finalChance then
-				local attrName = itemName:gsub("[^%w]", "") .. "Count"
-				local currentAmt = player:GetAttribute(attrName) or 0
-				local dropMultiplier = player:GetAttribute("HasDoubleDrops") and 2 or 1
-
-				if currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
-					autoSoldDews += (SellValues[rarity] or 10) * dropMultiplier
-				else
-					local nameTag = (dropMultiplier > 1) and (itemName .. " (x" .. dropMultiplier .. ")") or itemName
-					table.insert(droppedItems, nameTag)
-					player:SetAttribute(attrName, currentAmt + dropMultiplier)
-					if currentAmt == 0 then currentSlots += 1 end
-				end
-			end
-		end
-
-		if battle.Context.IsEndless and #droppedItems == 0 and autoSoldDews == 0 and battle.Context.CurrentWave % 3 == 0 then
-			local pool = {}
-			for iname, _ in pairs(battle.Enemy.Drops.ItemChance) do 
-				local iData = ItemData.Equipment[iname] or ItemData.Consumables[iname]
-				if iData and iData.Rarity ~= "Mythical" and iData.Rarity ~= "Legendary" then
-					table.insert(pool, iname) 
-				end
-			end
-			if #pool > 0 then
-				local pItem = pool[math.random(1, #pool)]
-				local attrName = pItem:gsub("[^%w]", "") .. "Count"
-				local currentAmt = player:GetAttribute(attrName) or 0
-				local dropMultiplier = player:GetAttribute("HasDoubleDrops") and 2 or 1
-
-				if currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
-					local iData = ItemData.Equipment[pItem] or ItemData.Consumables[pItem]
-					autoSoldDews += (SellValues[iData and iData.Rarity or "Common"] or 10) * dropMultiplier
-				else
-					local nameTag = (dropMultiplier > 1) and (pItem .. " (x" .. dropMultiplier .. ")") or pItem
-					table.insert(droppedItems, nameTag)
-					player:SetAttribute(attrName, currentAmt + dropMultiplier)
-					if currentAmt == 0 then currentSlots += 1 end
-				end
-			end
-		end
-	end
+	-- [[ NEW: Process all drops through LootManager securely ]]
+	local droppedItems, autoSoldDews = LootManager.ProcessDrops(player, battle.Enemy.Drops, battle.Context.IsEndless, battle.Context.CurrentWave)
 
 	if autoSoldDews > 0 then
-		player.leaderstats.Dews.Value += autoSoldDews
 		killMsg = killMsg .. "<br/><font color='#FFD700'>[Inventory Full: Auto-sold new drops for " .. autoSoldDews .. " Dews]</font>"
 	end
 
@@ -662,49 +575,10 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 		if battle.Player.HP < 1 or battle.Enemy.HP < 1 then break end
 		if combatant.HP < 1 then continue end
 
-		local dotDamage = 0
-		local dotLog = ""
-
-		if combatant.Statuses then
-			if combatant.Statuses["Bleed"] and combatant.Statuses["Bleed"] > 0 then
-				local dmg = combatant.IsPlayer and math.floor(combatant.MaxHP * 0.05) or math.min(math.floor(combatant.MaxHP * 0.02), 500)
-				dotDamage += dmg
-				dotLog = dotLog .. " <font color='#FF5555'>[BLEED: -" .. dmg .. "]</font>"
-			end
-			if combatant.Statuses["Burn"] and combatant.Statuses["Burn"] > 0 then
-				local dmg = combatant.IsPlayer and math.floor(combatant.MaxHP * 0.05) or math.min(math.floor(combatant.MaxHP * 0.02), 600)
-				dotDamage += dmg
-				dotLog = dotLog .. " <font color='#FFAA00'>[BURN: -" .. dmg .. "]</font>"
-			end
-
-			local immunitiesToTick = {}
-			local immunitiesToAdd = {}
-
-			for sName, duration in pairs(combatant.Statuses) do
-				if string.find(sName, "Immunity") then
-					table.insert(immunitiesToTick, sName)
-				elseif sName ~= "Transformed" and type(duration) == "number" and duration > 0 then
-					combatant.Statuses[sName] = duration - 1
-					if combatant.Statuses[sName] <= 0 then 
-						combatant.Statuses[sName] = nil 
-						if sName == "Stun" or sName == "Bleed" or sName == "Burn" or sName == "Crippled" or sName == "Immobilized" or sName == "Weakened" or sName == "Blinded" or sName == "TrueBlind" or sName == "Debuff_Defense" then
-							immunitiesToAdd[sName .. "Immunity"] = 2
-						end
-					end
-				end
-			end
-
-			for _, immName in ipairs(immunitiesToTick) do
-				combatant.Statuses[immName] = combatant.Statuses[immName] - 1
-				if combatant.Statuses[immName] <= 0 then combatant.Statuses[immName] = nil end
-			end
-			for immName, dur in pairs(immunitiesToAdd) do
-				combatant.Statuses[immName] = dur
-			end
-		end
+		-- [[ NEW: Secure Status Ticking ]]
+		local dotDamage, dotLog = CombatCore.TickStatuses(combatant)
 
 		if dotDamage > 0 then
-			combatant.HP -= dotDamage
 			local targetName = combatant.IsPlayer and "You" or combatant.Name
 			CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = targetName .. " took damage from status effects!" .. dotLog, DidHit = false, ShakeType = "None"})
 			task.wait(turnDelay)
@@ -716,9 +590,6 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 			CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = denyMsg, DidHit = false, ShakeType = "None"})
 			task.wait(turnDelay)
 
-			if combatant.Cooldowns then for sName, cd in pairs(combatant.Cooldowns) do if cd > 0 then combatant.Cooldowns[sName] = cd - 1 end end end
-			if combatant.GateType == "Steam" and combatant.GateHP and combatant.GateHP > 0 then combatant.GateHP = math.max(0, combatant.GateHP - 1) end
-
 			if not combatant.IsPlayer and not combatant.IsHuman then
 				if not (combatant.Statuses and combatant.Statuses["Burn"]) then
 					local regenAmt = math.min(math.floor(combatant.MaxHP * 0.05), 100)
@@ -727,9 +598,6 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 			end
 			continue
 		end
-
-		if combatant.Cooldowns then for sName, cd in pairs(combatant.Cooldowns) do if cd > 0 then combatant.Cooldowns[sName] = cd - 1 end end end
-		if combatant.GateType == "Steam" and combatant.GateHP and combatant.GateHP > 0 then combatant.GateHP = math.max(0, combatant.GateHP - 1) end
 
 		if combatant.IsPlayer then
 			if skill.Effect == "Flee" or skillName == "Retreat" then 
