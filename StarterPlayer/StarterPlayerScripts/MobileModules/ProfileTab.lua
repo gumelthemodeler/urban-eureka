@@ -66,9 +66,6 @@ local function ApplyButtonGradient(btn, topColor, botColor, strokeColor)
 		textLbl.TextYAlignment = btn.TextYAlignment
 		textLbl.ZIndex = btn.ZIndex + 1
 
-		local tConstraint = btn:FindFirstChildOfClass("UITextSizeConstraint")
-		if tConstraint then tConstraint.Parent = textLbl end
-
 		btn.ChildAdded:Connect(function(child) 
 			if child:IsA("UITextSizeConstraint") then task.delay(0, function() child.Parent = textLbl end) end 
 		end)
@@ -130,17 +127,23 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 	local ShowcaseCard = Instance.new("Frame", MainFrame)
 	ShowcaseCard.Size = UDim2.new(0.95, 0, 0, 0); ShowcaseCard.AutomaticSize = Enum.AutomaticSize.Y; ShowcaseCard.BackgroundColor3 = Color3.fromRGB(20, 20, 25); ShowcaseCard.LayoutOrder = 1
+	ShowcaseCard.ClipsDescendants = true 
 	Instance.new("UICorner", ShowcaseCard).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", ShowcaseCard).Color = Color3.fromRGB(80, 80, 90)
 
 	local scLayout = Instance.new("UIListLayout", ShowcaseCard)
 	scLayout.SortOrder = Enum.SortOrder.LayoutOrder; scLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; scLayout.Padding = UDim.new(0, 10)
-	local scPad = Instance.new("UIPadding", ShowcaseCard); scPad.PaddingTop = UDim.new(0, 20); scPad.PaddingBottom = UDim.new(0, 20)
+	local scPad = Instance.new("UIPadding", ShowcaseCard); scPad.PaddingTop = UDim.new(0, 20); scPad.PaddingBottom = UDim.new(0, 35) 
 
 	AvatarTitle = Instance.new("TextLabel", ShowcaseCard)
 	AvatarTitle.Size = UDim2.new(1, 0, 0, 25); AvatarTitle.BackgroundTransparency = 1; AvatarTitle.Font = Enum.Font.GothamBlack; AvatarTitle.TextColor3 = Color3.fromRGB(255, 255, 255); AvatarTitle.TextSize = 16; AvatarTitle.Text = "104TH CADET"; AvatarTitle.LayoutOrder = 1; AvatarTitle.ZIndex = 10
 
-	local AvatarContainer = Instance.new("Frame", ShowcaseCard)
-	AvatarContainer.Size = UDim2.new(0.4, 0, 0.4, 0); AvatarContainer.BackgroundTransparency = 1; AvatarContainer.LayoutOrder = 2
+	-- [[ FIX: Horizontal Container for side-by-side display ]]
+	local AvatarRow = Instance.new("Frame", ShowcaseCard)
+	AvatarRow.Size = UDim2.new(1, 0, 0, 120); AvatarRow.BackgroundTransparency = 1; AvatarRow.LayoutOrder = 2
+	local arLayout = Instance.new("UIListLayout", AvatarRow); arLayout.FillDirection = Enum.FillDirection.Horizontal; arLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; arLayout.VerticalAlignment = Enum.VerticalAlignment.Center; arLayout.Padding = UDim.new(0, 20)
+
+	local AvatarContainer = Instance.new("Frame", AvatarRow)
+	AvatarContainer.Size = UDim2.new(0, 120, 0, 120); AvatarContainer.BackgroundTransparency = 1
 	Instance.new("UIAspectRatioConstraint", AvatarContainer).AspectRatio = 1.0
 
 	AvatarAuraGlow = Instance.new("Frame", AvatarContainer)
@@ -150,6 +153,9 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	AvatarBox.Size = UDim2.new(1, 0, 1, 0); AvatarBox.Position = UDim2.new(0.5, 0, 0.5, 0); AvatarBox.AnchorPoint = Vector2.new(0.5, 0.5); AvatarBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 	AvatarBox.Image = "rbxthumb://type=AvatarBust&id="..player.UserId.."&w=420&h=420"; AvatarBox.ZIndex = 5
 	Instance.new("UICorner", AvatarBox).CornerRadius = UDim.new(1, 0); Instance.new("UIStroke", AvatarBox).Color = Color3.fromRGB(100, 100, 110); AvatarBox.UIStroke.Thickness = 2
+
+	regIcon = Instance.new("ImageLabel", AvatarRow)
+	regIcon.Size = UDim2.new(0, 85, 0, 85); regIcon.BackgroundTransparency = 1; regIcon.ZIndex = 6; regIcon.ScaleType = Enum.ScaleType.Fit 
 
 	local PlayerNameLbl = Instance.new("TextLabel", ShowcaseCard)
 	PlayerNameLbl.Size = UDim2.new(1, 0, 0, 30); PlayerNameLbl.BackgroundTransparency = 1; PlayerNameLbl.Font = Enum.Font.GothamBlack; PlayerNameLbl.TextColor3 = Color3.fromRGB(255, 255, 255); PlayerNameLbl.TextSize = 22; PlayerNameLbl.Text = string.upper(player.Name); PlayerNameLbl.LayoutOrder = 3
@@ -166,9 +172,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 	prestigeValLbl = CreateStyledInfoLabel(InfoTextContainer)
 	eloValLbl = CreateStyledInfoLabel(InfoTextContainer)
-
-	regIcon = Instance.new("ImageLabel", ShowcaseCard)
-	regIcon.Size = UDim2.new(0, 115, 0, 115); regIcon.BackgroundTransparency = 1; regIcon.ZIndex = 6; regIcon.LayoutOrder = 5
 
 	local MidCol = Instance.new("Frame", MainFrame)
 	MidCol.Size = UDim2.new(0.95, 0, 0, 420); MidCol.BackgroundColor3 = Color3.fromRGB(20, 20, 25); MidCol.LayoutOrder = 2
@@ -235,7 +238,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 	midLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() MidCol.Size = UDim2.new(0.95, 0, 0, midLayout.AbsoluteContentSize.Y + 30) end)
 
-	-- [[ FIX 1: TABS ARE NOW CENTERED PERFECTLY ]]
 	local TopNav = Instance.new("ScrollingFrame", MainFrame)
 	TopNav.Size = UDim2.new(0.95, 0, 0, 40); TopNav.BackgroundColor3 = Color3.fromRGB(15, 15, 18); TopNav.ScrollBarThickness = 0; TopNav.ScrollingDirection = Enum.ScrollingDirection.X; TopNav.LayoutOrder = 3
 	Instance.new("UICorner", TopNav).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", TopNav).Color = Color3.fromRGB(80, 80, 90)
@@ -273,18 +275,23 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	CreateSubNavBtn("Titles", "TITLES")
 	CreateSubNavBtn("Auras", "AURAS")
 
-	-- [[ 3A. INVENTORY TAB ]]
 	SubTabs["Inventory"] = Instance.new("Frame", ContentArea)
-	SubTabs["Inventory"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Inventory"].BackgroundColor3 = Color3.fromRGB(20, 20, 25); SubTabs["Inventory"].Visible = true
+	SubTabs["Inventory"].Size = UDim2.new(1, 0, 0, 0); SubTabs["Inventory"].AutomaticSize = Enum.AutomaticSize.Y
+	SubTabs["Inventory"].BackgroundColor3 = Color3.fromRGB(20, 20, 25); SubTabs["Inventory"].Visible = true
 	Instance.new("UICorner", SubTabs["Inventory"]).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", SubTabs["Inventory"]).Color = Color3.fromRGB(80, 80, 90)
 
+	local invMasterLayout = Instance.new("UIListLayout", SubTabs["Inventory"])
+	invMasterLayout.SortOrder = Enum.SortOrder.LayoutOrder; invMasterLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local invPad = Instance.new("UIPadding", SubTabs["Inventory"])
+	invPad.PaddingTop = UDim.new(0, 10); invPad.PaddingBottom = UDim.new(0, 20)
+
 	InvTitle = Instance.new("TextLabel", SubTabs["Inventory"])
-	InvTitle.Size = UDim2.new(1, 0, 0, 40); InvTitle.BackgroundTransparency = 1; InvTitle.Font = Enum.Font.GothamBlack; InvTitle.TextColor3 = Color3.fromRGB(255, 215, 100); InvTitle.TextSize = 18; InvTitle.Text = "INVENTORY (0/50)"
+	InvTitle.Size = UDim2.new(1, 0, 0, 40); InvTitle.BackgroundTransparency = 1; InvTitle.Font = Enum.Font.GothamBlack; InvTitle.TextColor3 = Color3.fromRGB(255, 215, 100); InvTitle.TextSize = 18; InvTitle.Text = "INVENTORY (0/50)"; InvTitle.LayoutOrder = 1
 	ApplyGradient(InvTitle, Color3.fromRGB(255, 215, 100), Color3.fromRGB(255, 150, 50))
 
-	-- [[ FIX 5: Full Auto-Sell Panel Centered with Epic, Leg, Mythic ]]
 	local AutoSellFrame = Instance.new("ScrollingFrame", SubTabs["Inventory"])
-	AutoSellFrame.Size = UDim2.new(1, 0, 0, 30); AutoSellFrame.Position = UDim2.new(0, 0, 0, 40); AutoSellFrame.BackgroundTransparency = 1
+	AutoSellFrame.Size = UDim2.new(1, 0, 0, 30); AutoSellFrame.BackgroundTransparency = 1; AutoSellFrame.LayoutOrder = 2
 	AutoSellFrame.ScrollBarThickness = 0; AutoSellFrame.ScrollingDirection = Enum.ScrollingDirection.X
 	local asLayout = Instance.new("UIListLayout", AutoSellFrame); asLayout.FillDirection = Enum.FillDirection.Horizontal; asLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; asLayout.Padding = UDim.new(0, 5)
 
@@ -322,8 +329,9 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	CreateAutoSell("Mythical", Color3.fromRGB(255, 51, 51))
 
 	local FilterFrame = Instance.new("Frame", SubTabs["Inventory"])
-	FilterFrame.Size = UDim2.new(1, 0, 0, 35); FilterFrame.Position = UDim2.new(0, 0, 0, 75); FilterFrame.BackgroundTransparency = 1
+	FilterFrame.Size = UDim2.new(1, 0, 0, 35); FilterFrame.BackgroundTransparency = 1; FilterFrame.LayoutOrder = 3
 	local ffLayout = Instance.new("UIListLayout", FilterFrame); ffLayout.FillDirection = Enum.FillDirection.Horizontal; ffLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; ffLayout.Padding = UDim.new(0, 8)
+	local ffPad = Instance.new("UIPadding", FilterFrame); ffPad.PaddingTop = UDim.new(0, 10); ffPad.PaddingBottom = UDim.new(0, 10)
 
 	local RefreshProfile 
 	local function MakeFilterBtn(id, text)
@@ -351,19 +359,17 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	ApplyButtonGradient(FilterBtns["All"], Color3.fromRGB(60, 140, 60), Color3.fromRGB(30, 80, 30), Color3.fromRGB(80, 180, 80))
 	FilterBtns["All"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
-	-- [[ FIX 2: Fixed Mobile True Square Grid (75x75) ]]
-	InvGrid = Instance.new("ScrollingFrame", SubTabs["Inventory"])
-	InvGrid.Size = UDim2.new(1, -10, 1, -115); InvGrid.Position = UDim2.new(0, 5, 0, 110); InvGrid.BackgroundTransparency = 1; InvGrid.BorderSizePixel = 0; InvGrid.ScrollBarThickness = 0
+	InvGrid = Instance.new("Frame", SubTabs["Inventory"])
+	InvGrid.Size = UDim2.new(1, -10, 0, 0); InvGrid.AutomaticSize = Enum.AutomaticSize.Y; InvGrid.BackgroundTransparency = 1; InvGrid.BorderSizePixel = 0; InvGrid.LayoutOrder = 4
 	local gl = Instance.new("UIGridLayout", InvGrid)
 	gl.CellSize = UDim2.new(0, 75, 0, 75); gl.CellPadding = UDim2.new(0, 10, 0, 15); gl.HorizontalAlignment = Enum.HorizontalAlignment.Center; gl.SortOrder = Enum.SortOrder.LayoutOrder
+	local glPad = Instance.new("UIPadding", InvGrid); glPad.PaddingTop = UDim.new(0, 10)
 
-	-- [[ 3B. TITLES TAB ]]
 	SubTabs["Titles"] = Instance.new("ScrollingFrame", ContentArea)
 	SubTabs["Titles"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Titles"].BackgroundTransparency = 1; SubTabs["Titles"].Visible = false; SubTabs["Titles"].ScrollBarThickness = 6; SubTabs["Titles"].BorderSizePixel = 0
 	local tLayout = Instance.new("UIListLayout", SubTabs["Titles"]); tLayout.Padding = UDim.new(0, 10); tLayout.SortOrder = Enum.SortOrder.LayoutOrder; tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	local tPad = Instance.new("UIPadding", SubTabs["Titles"]); tPad.PaddingTop = UDim.new(0, 10); tPad.PaddingBottom = UDim.new(0, 20)
 
-	-- [[ 3C. AURAS TAB ]]
 	SubTabs["Auras"] = Instance.new("ScrollingFrame", ContentArea)
 	SubTabs["Auras"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Auras"].BackgroundTransparency = 1; SubTabs["Auras"].Visible = false; SubTabs["Auras"].ScrollBarThickness = 6; SubTabs["Auras"].BorderSizePixel = 0
 	local aLayout = Instance.new("UIListLayout", SubTabs["Auras"]); aLayout.Padding = UDim.new(0, 10); aLayout.SortOrder = Enum.SortOrder.LayoutOrder; aLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -421,8 +427,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	BuildCosmeticList(SubTabs["Auras"], "Aura", CosmeticData.Auras)
 	aLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SubTabs["Auras"].CanvasSize = UDim2.new(0, 0, 0, aLayout.AbsoluteContentSize.Y + 30) end)
 
-
-	-- [[ GLOBAL UPDATE LOGIC ]]
 	titanAwakenBtn.MouseButton1Click:Connect(function() Network.AwakenAction:FireServer("Titan") end)
 	clanAwakenBtn.MouseButton1Click:Connect(function() Network.AwakenAction:FireServer("Clan") end)
 	prestigeBtn.MouseButton1Click:Connect(function() Network.PrestigeEvent:FireServer() end)
@@ -451,7 +455,7 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	RadarContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(RenderRadarChart)
 	toggleStatsBtn.MouseButton1Click:Connect(function() isShowingTitanStats = not isShowingTitanStats; RenderRadarChart() end)
 
-	local function RefreshProfile()
+	function RefreshProfile()
 		local tName = player:GetAttribute("Titan") or "None"; local cName = player:GetAttribute("Clan") or "None"; local cPart = player:GetAttribute("CurrentPart") or 1
 		local regName = player:GetAttribute("Regiment") or "Cadet Corps"
 
@@ -772,8 +776,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 		InvTitle.Text = "INVENTORY (" .. currentSlotsUsed .. "/" .. MAX_INVENTORY_CAPACITY .. ")"
 		if currentSlotsUsed >= MAX_INVENTORY_CAPACITY then InvTitle.TextColor3 = Color3.fromRGB(255, 100, 100) else InvTitle.TextColor3 = Color3.fromRGB(255, 215, 100) end
-
-		task.delay(0.05, function() InvGrid.CanvasSize = UDim2.new(0, 0, 0, math.ceil(layoutOrderCounter / 6) * 95) end)
 	end
 
 	player.AttributeChanged:Connect(RefreshProfile)
