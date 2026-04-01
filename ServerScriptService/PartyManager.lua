@@ -1,6 +1,5 @@
 -- @ScriptType: Script
 -- @ScriptType: Script
--- @ScriptType: Script
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Network = ReplicatedStorage:WaitForChild("Network")
@@ -150,7 +149,11 @@ Players.PlayerRemoving:Connect(function(player)
 	Invites[player.UserId] = nil
 end)
 
--- Add this at the absolute bottom of PartyManager.lua
-_G.GetPlayerParty = function(player)
+-- Replace _G hack with a BindableFunction
+local GetPartyBindable = Instance.new("BindableFunction")
+GetPartyBindable.Name = "GetPlayerParty"
+GetPartyBindable.Parent = Network
+
+GetPartyBindable.OnInvoke = function(player)
 	return PlayerToParty[player.UserId] and Parties[PlayerToParty[player.UserId]] or {Leader = player, Members = {player}}
 end
