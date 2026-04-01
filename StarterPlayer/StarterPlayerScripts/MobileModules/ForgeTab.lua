@@ -87,23 +87,81 @@ local function TweenGradient(grad, targetTop, targetBot, duration)
 	tween:Play(); tween.Completed:Connect(function() val:Destroy() end)
 end
 
+-- Completely reworked Forge Boxes to mimic ProfileTab visually
 local function CreateStationSquare(parent, rarityColor, isDews, lOrder)
 	local sq = Instance.new("TextButton", parent)
-	sq.Size = UDim2.new(0, 70, 0, 70); sq.BackgroundColor3 = Color3.fromRGB(22, 22, 28); sq.Text = ""; sq.LayoutOrder = lOrder
-	local stroke = Instance.new("UIStroke", sq); stroke.Color = Color3.fromHex(rarityColor:gsub("#","")); stroke.Thickness = 2; stroke.LineJoinMode = Enum.LineJoinMode.Miter; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	sq.Size = UDim2.new(0, 75, 0, 75)
+	sq.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+	sq.Text = ""
+	sq.LayoutOrder = lOrder
+	sq.ClipsDescendants = true
+	Instance.new("UICorner", sq).CornerRadius = UDim.new(0, 6)
 
-	local tBox, tTxt
+	local cColor = Color3.fromHex(rarityColor:gsub("#", ""))
+
+	local stroke = Instance.new("UIStroke", sq)
+	stroke.Color = cColor
+	stroke.Thickness = 1
+	stroke.Transparency = 0.55
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+	local accentBar = Instance.new("Frame", sq)
+	accentBar.Size = UDim2.new(1, 0, 0, 3)
+	accentBar.BackgroundColor3 = cColor
+	accentBar.BorderSizePixel = 0
+	accentBar.ZIndex = 2
+
+	local bgGlow = Instance.new("Frame", sq)
+	bgGlow.Size = UDim2.new(1, 0, 0.5, 0)
+	bgGlow.Position = UDim2.new(0, 0, 0.5, 0)
+	bgGlow.BackgroundColor3 = cColor
+	bgGlow.BackgroundTransparency = 0.92
+	bgGlow.BorderSizePixel = 0
+	bgGlow.ZIndex = 1
+
+	local tBox = nil
+	local tTxt = nil
+
 	if not isDews then
-		tBox = Instance.new("Frame", sq); tBox.Size = UDim2.new(0, 14, 0, 14); tBox.Position = UDim2.new(0, 4, 0, 4); tBox.BackgroundColor3 = stroke.Color
-		Instance.new("UICorner", tBox).CornerRadius = UDim.new(0, 4)
-		tTxt = Instance.new("TextLabel", tBox); tTxt.Size = UDim2.new(1, 0, 1, 0); tTxt.BackgroundTransparency = 1; tTxt.Font = Enum.Font.GothamBlack; tTxt.TextColor3 = Color3.new(0,0,0); tTxt.TextSize = 9; tTxt.Text = "?"
+		local rarityTag = Instance.new("TextLabel", sq)
+		rarityTag.Size = UDim2.new(0, 16, 0, 16)
+		rarityTag.Position = UDim2.new(0, 6, 1, -22)
+		rarityTag.BackgroundTransparency = 1
+		rarityTag.Font = Enum.Font.GothamBlack
+		rarityTag.TextColor3 = cColor
+		rarityTag.TextTransparency = 0.3
+		rarityTag.TextSize = 11
+		rarityTag.Text = "?"
+		rarityTag.ZIndex = 3
+		tTxt = rarityTag
 	end
 
-	local nameLbl = Instance.new("TextLabel", sq); nameLbl.Size = UDim2.new(0.9, 0, 0.45, 0); nameLbl.Position = UDim2.new(0.5, 0, 0.5, 0); nameLbl.AnchorPoint = Vector2.new(0.5, 0.5); nameLbl.BackgroundTransparency = 1; nameLbl.Font = Enum.Font.GothamBold; nameLbl.TextColor3 = Color3.fromRGB(230, 230, 230); nameLbl.TextScaled = true; nameLbl.TextWrapped = true; nameLbl.Text = isDews and "DEWS" or "???"
-	if isDews then nameLbl.TextColor3 = Color3.fromRGB(255, 215, 100); nameLbl.Font = Enum.Font.GothamBlack end
-	local tCon = Instance.new("UITextSizeConstraint", nameLbl); tCon.MaxTextSize = isDews and 16 or 10; tCon.MinTextSize = 6
+	local nameLbl = Instance.new("TextLabel", sq)
+	nameLbl.Size = UDim2.new(0.88, 0, 0.5, 0)
+	nameLbl.Position = UDim2.new(0.5, 0, 0.5, 2)
+	nameLbl.AnchorPoint = Vector2.new(0.5, 0.5)
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Font = isDews and Enum.Font.GothamBlack or Enum.Font.GothamBold
+	nameLbl.TextColor3 = isDews and Color3.fromRGB(255, 215, 100) or Color3.fromRGB(235, 235, 235)
+	nameLbl.TextScaled = true
+	nameLbl.TextWrapped = true
+	nameLbl.Text = isDews and "DEWS" or "???"
+	nameLbl.ZIndex = 3
+	local tCon = Instance.new("UITextSizeConstraint", nameLbl)
+	tCon.MaxTextSize = isDews and 16 or 11
+	tCon.MinTextSize = 7
 
-	local cntLbl = Instance.new("TextLabel", sq); cntLbl.Size = UDim2.new(1, -4, 0, 15); cntLbl.Position = UDim2.new(0, 2, 1, -15); cntLbl.BackgroundTransparency = 1; cntLbl.Font = Enum.Font.GothamBold; cntLbl.TextColor3 = Color3.fromRGB(150, 150, 150); cntLbl.TextSize = 8; cntLbl.TextXAlignment = Enum.TextXAlignment.Center; cntLbl.Text = isDews and "Cost: 0" or "Req: 0"; cntLbl.RichText = true
+	local cntLbl = Instance.new("TextLabel", sq)
+	cntLbl.Size = UDim2.new(1, -4, 0, 15)
+	cntLbl.Position = UDim2.new(0, 2, 1, -15)
+	cntLbl.BackgroundTransparency = 1
+	cntLbl.Font = Enum.Font.GothamBold
+	cntLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+	cntLbl.TextSize = 9
+	cntLbl.TextXAlignment = Enum.TextXAlignment.Center
+	cntLbl.Text = isDews and "Cost: 0" or "Req: 0"
+	cntLbl.RichText = true
+	cntLbl.ZIndex = 4
 
 	return sq, nameLbl, cntLbl, stroke, tBox, tTxt
 end
@@ -599,6 +657,12 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 			local tName = sId and player:GetAttribute(sId == "Equipped" and "Titan" or ("Titan_Slot"..sId)) or "None"
 			local bNameLbl = box:FindFirstChildOfClass("TextLabel")
 			local bRarTxt = box:FindFirstChild("Frame") and box.Frame:FindFirstChildOfClass("TextLabel")
+			if not bRarTxt then -- fallback check for rarity text natively placed
+				for _, chld in ipairs(box:GetChildren()) do 
+					if chld:IsA("TextLabel") and chld.TextSize == 11 then bRarTxt = chld end 
+				end
+			end
+
 			if tName ~= "None" then
 				local tData = TitanData.Titans[tName]
 				local rKey = tData and tData.Rarity or "Common"
@@ -615,6 +679,11 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 
 		local resNameLbl = fusResBox:FindFirstChildOfClass("TextLabel")
 		local resRarTxt = fusResBox:FindFirstChild("Frame") and fusResBox.Frame:FindFirstChildOfClass("TextLabel")
+		if not resRarTxt then 
+			for _, chld in ipairs(fusResBox:GetChildren()) do 
+				if chld:IsA("TextLabel") and chld.TextSize == 11 then resRarTxt = chld end 
+			end
+		end
 
 		if selectedFusionBase and selectedFusionSacrifice then
 			local bTitan = player:GetAttribute(selectedFusionBase == "Equipped" and "Titan" or ("Titan_Slot"..selectedFusionBase)) or "None"
