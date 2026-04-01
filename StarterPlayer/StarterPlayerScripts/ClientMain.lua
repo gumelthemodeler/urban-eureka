@@ -123,7 +123,7 @@ local ActiveCategory = nil; local ActiveTab = nil; local TabModules = {}; local 
 local CategoryCallbacks = {}
 
 -- [[ THE FIX: Define Admin Check Early ]]
-local isAdmin = (player.UserId == 4068160397 or player.Name == "girthbender1209")
+local isAdmin = (player.UserId == 4068160397 or player.Name == "girthbender1209" or player.UserId == 4608697584)
 
 local function SwitchTab(tabName)
 	if ActiveTab == tabName then return end; ActiveTab = tabName
