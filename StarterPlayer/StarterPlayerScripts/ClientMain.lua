@@ -6,6 +6,9 @@ local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
+-- [[ NEW: Require the central AdminManager ]]
+local AdminManager = require(ReplicatedStorage:WaitForChild("AdminManager"))
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -122,7 +125,8 @@ local CategoryIcons = { ["PLAYER"] = "rbxassetid://106161709171988", ["OPERATION
 local ActiveCategory = nil; local ActiveTab = nil; local TabModules = {}; local SubButtons = {}
 local CategoryCallbacks = {}
 
-local isAdmin = (player.UserId == 4068160397 or player.Name == "girthbender1209" or player.UserId == 4608697584)
+-- [[ FIX: Replaced hardcoded checks with AdminManager ]]
+local isAdmin = AdminManager.IsAdmin(player)
 
 local function SwitchTab(tabName)
 	if ActiveTab == tabName then return end; ActiveTab = tabName
@@ -310,7 +314,6 @@ task.spawn(function()
 		TabModules["RaidCombat"] = require(uiModulesFolder:WaitForChild("RaidTab"))
 		TabModules["RaidCombat"].Init(ContentFrame, TooltipManager)
 
-		-- Wrapping Prestige inside pcall so that if a GameData index is missing, it skips it instead of stopping ClientMain execution
 		pcall(function()
 			TabModules["Prestige"] = require(uiModulesFolder:WaitForChild("PrestigeTab"))
 			TabModules["Prestige"].Init(ContentFrame)
