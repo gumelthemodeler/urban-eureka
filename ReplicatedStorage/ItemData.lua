@@ -95,6 +95,30 @@ ItemData.ForgeRecipes = {
 	["Shroud of the Doomed"] = { Result = "Shroud of the Doomed", ReqItems = {["Commander's Bolo Tie"] = 5, ["Abyssal Blood"] = 3}, DewCost = 5000000 }
 }
 
+-- [[ NEW: EQUIPMENT SET BONUSES ]]
+ItemData.Sets = {
+	["Scout Veteran"] = {
+		Pieces = {Weapon = "Veteran Scout Blades", Accessory = "Scout Regiment Cloak"},
+		Bonus = { DodgeBonus = 15, Speed = 10 },
+		Desc = "Scout Veteran Set: +15% Dodge Chance, +10 Speed"
+	},
+	["Marleyan Warrior"] = {
+		Pieces = {Weapon = "Marleyan Rifle", Accessory = "Marleyan Armband"},
+		Bonus = { IgnoreArmor = 0.20, Strength = 15 },
+		Desc = "Marleyan Warrior Set: 20% Armor Penetration, +15 Strength"
+	},
+	["Commander's Resolve"] = {
+		Pieces = {Weapon = "Iceburst Steel Blades", Accessory = "Erwin's Pendant"},
+		Bonus = { DmgMult = 1.25, MaxHP = 50 },
+		Desc = "Commander's Resolve Set: +25% Total Damage, +50 Max HP"
+	},
+	["Ackerman Blood"] = {
+		Pieces = {Weapon = "Kenny's Custom Pistols", Accessory = "Mikasa's Scarf"},
+		Bonus = { CritBonus = 20, Speed = 30 },
+		Desc = "Ackerman Set: +20% Crit Chance, +30 Speed"
+	}
+}
+
 -- [[ RESTORED: GAMEPASSES ]]
 ItemData.Gamepasses = {
 	{ ID = 1749846514, GiftID = 3562817556, Name = "Auto Train", Desc = "Passively generates Training XP in the background.", Key = "AutoTrain" },
