@@ -4,9 +4,12 @@ local AdminTab = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService") -- [[ THE FIX: Added TweenService here! ]]
+local TweenService = game:GetService("TweenService")
 local Network = ReplicatedStorage:WaitForChild("Network")
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
+
+-- [[ NEW: Require the central AdminManager ]]
+local AdminManager = require(ReplicatedStorage:WaitForChild("AdminManager"))
 
 local player = Players.LocalPlayer
 local MainFrame
@@ -23,7 +26,8 @@ local Colors = {
 }
 
 function AdminTab.Init(parentFrame)
-	if player.UserId ~= 4068160397 and player.Name ~= "girthbender1209" or player.UserId ~= 4608697584 then return end
+	-- [[ FIX: Use the clean, centralized check ]]
+	if not AdminManager.IsAdmin(player) then return end
 
 	MainFrame = Instance.new("Frame", parentFrame)
 	MainFrame.Name = "AdminFrame"; MainFrame.Size = UDim2.new(1, 0, 1, 0); MainFrame.BackgroundTransparency = 1; MainFrame.Visible = false
@@ -103,7 +107,6 @@ function AdminTab.Init(parentFrame)
 	CreateMacroBtn(Col2, "Give 50x Titan Serums", "GiveItem", {Item = "Standard Titan Serum", Amount = 50})
 	CreateMacroBtn(Col2, "Give 50x Clan Vials", "GiveItem", {Item = "Clan Blood Vial", Amount = 50})
 
-	-- [[ NEW: Targeted Recovery Code generation ]]
 	CreateMacroBtn(Col2, "Generate Recovery Code", "GenerateRecovery", nil, Color3.fromRGB(40, 80, 140))
 
 	local wipeBtn = Instance.new("TextButton", Col2); wipeBtn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -124,7 +127,6 @@ function AdminTab.Init(parentFrame)
 		end
 	end)
 
-	-- [[ NEW: Global Rollback Button ]]
 	local globalBtn = Instance.new("TextButton", Col2); globalBtn.Size = UDim2.new(0.9, 0, 0, 40)
 	globalBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0); globalBtn.Font = Enum.Font.GothamBlack; globalBtn.TextColor3 = Colors.Text; globalBtn.TextSize = 12; globalBtn.Text = "GLOBAL ROLLBACK (ALL SERVERS)"
 	Instance.new("UICorner", globalBtn).CornerRadius = UDim.new(0, 4); Instance.new("UIStroke", globalBtn).Color = Color3.fromRGB(255, 0, 0); globalBtn.UIStroke.Thickness = 2
