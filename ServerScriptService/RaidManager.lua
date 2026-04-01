@@ -1,6 +1,5 @@
 -- @ScriptType: Script
 -- @ScriptType: Script
--- @ScriptType: Script
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Network = ReplicatedStorage:WaitForChild("Network")
@@ -72,7 +71,7 @@ local function EndRaid(raidId, isVictory)
 				local dews = drops.Dews
 				local xp = drops.XP
 
-				-- [[ FIX: Dead Player Penalty ]]
+				-- Dead Player Penalty
 				local isDead = (pData.HP <= 0)
 				if isDead then
 					dews = math.floor(dews * 0.5)
@@ -221,7 +220,6 @@ local function ResolveRaidTurn(raidId)
 					if p.Statuses and (tonumber(p.Statuses["Dodge"]) or 0) > 0 then
 						logMsg = logMsg .. "- " .. p.Name .. " maneuvered out of the way!\n"
 					else
-						-- [[ FIX: AoE now correctly runs through damage formulas (Armor/Resolve) ]]
 						local rawDmg = math.floor(p.MaxHP * aoePct)
 						local survived, hitGate, gateBroken, finalDmg, gateName = CombatCore.TakeDamage(p, rawDmg, "AoE")
 
@@ -263,40 +261,43 @@ local function ResolveRaidTurn(raidId)
 		end
 	end
 
-	local function TickStatusesAndCooldowns(combatant)
-		if not combatant then return end
-		if combatant.Cooldowns then
-			for sName, cd in pairs(combatant.Cooldowns) do
-				if cd > 0 then combatant.Cooldowns[sName] = cd - 1 end
-			end
-		end
+	-- [[ NEW: Replaced local function with modular CombatCore.TickStatuses ]]
+	for _, p in ipairs(raid.Party) do 
+		if p.HP > 0 then 
+			local dotDmg, dotLog = CombatCore.TickStatuses(p) 
+			if dotDmg > 0 then p.HP -= dotDmg end
 
-		if not combatant.Statuses then return end
-		if combatant.Statuses["Bleed"] then combatant.HP -= math.min(combatant.MaxHP * 0.05, 500) end
-		if combatant.Statuses["Burn"] then combatant.HP -= math.min(combatant.MaxHP * 0.05, 600) end
-
-		for sName, dur in pairs(combatant.Statuses) do
-			if type(dur) == "number" and sName ~= "Transformed" then
-				combatant.Statuses[sName] = dur - 1
-				if combatant.Statuses[sName] <= 0 then combatant.Statuses[sName] = nil end
+			if dotLog ~= "" and p.PlayerObj and p.PlayerObj.Parent then
+				local logMsg = p.Name .. " took damage from status effects!" .. dotLog
+				RaidUpdate:FireClient(p.PlayerObj, "TurnStrike", { LogMsg = logMsg, ShakeType = "None", BossData = raid.Boss, PartyData = raid.Party, Range = raid.Range })
 			end
-		end
+		end 
 	end
 
-	for _, p in ipairs(raid.Party) do if p.HP > 0 then TickStatusesAndCooldowns(p) end end
-	TickStatusesAndCooldowns(raid.Boss)
+	if raid.Boss.HP > 0 then
+		local bDotDmg, bDotLog = CombatCore.TickStatuses(raid.Boss)
+		if bDotDmg > 0 then raid.Boss.HP -= bDotDmg end
 
-	if raid.Boss.GateType == "Steam" and raid.Boss.GateHP > 0 then
-		raid.Boss.GateHP = raid.Boss.GateHP - 1
-		if raid.Boss.GateHP <= 0 then
-			local logMsg = "<font color='#55FFFF'><b>The intense steam surrounding " .. raid.Boss.Name .. " has completely dissipated! The nape is exposed!</b></font>"
+		if bDotLog ~= "" then
+			local logMsg = raid.Boss.Name .. " took damage from status effects!" .. bDotLog
 			for _, p in ipairs(raid.Party) do
 				if p.PlayerObj and p.PlayerObj.Parent then
 					RaidUpdate:FireClient(p.PlayerObj, "TurnStrike", { LogMsg = logMsg, ShakeType = "None", BossData = raid.Boss, PartyData = raid.Party, Range = raid.Range })
 				end
 			end
-			task.wait(1.5)
 		end
+	end
+
+	-- Gate dissipation logic
+	if raid.Boss.GateType == "Steam" and raid.Boss.GateHP <= 0 and not raid.Boss.GateBrokenFlag then
+		raid.Boss.GateBrokenFlag = true -- Prevent spamming the message
+		local logMsg = "<font color='#55FFFF'><b>The intense steam surrounding " .. raid.Boss.Name .. " has completely dissipated! The nape is exposed!</b></font>"
+		for _, p in ipairs(raid.Party) do
+			if p.PlayerObj and p.PlayerObj.Parent then
+				RaidUpdate:FireClient(p.PlayerObj, "TurnStrike", { LogMsg = logMsg, ShakeType = "None", BossData = raid.Boss, PartyData = raid.Party, Range = raid.Range })
+			end
+		end
+		task.wait(1.5)
 	end
 
 	if raid.Boss.HP <= 0 then EndRaid(raidId, true); return end
@@ -336,8 +337,10 @@ end)
 
 RaidAction.OnServerEvent:Connect(function(player, action, data)
 	if action == "DeployParty" then
-		if not _G.GetPlayerParty then Network.NotificationEvent:FireClient(player, "Party System is still loading.", "Error"); return end
-		local partyData = _G.GetPlayerParty(player)
+		local getPartyFunc = Network:FindFirstChild("GetPlayerParty")
+		if not getPartyFunc then Network.NotificationEvent:FireClient(player, "Party System is still loading.", "Error"); return end
+
+		local partyData = getPartyFunc:Invoke(player)
 		if partyData.Leader.UserId ~= player.UserId then Network.NotificationEvent:FireClient(player, "Only the Party Leader can start the Raid.", "Error"); return end
 
 		local bossData = EnemyData.RaidBosses[data.RaidId]
