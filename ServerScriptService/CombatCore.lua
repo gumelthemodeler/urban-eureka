@@ -1,5 +1,6 @@
 -- @ScriptType: ModuleScript
 -- @ScriptType: ModuleScript
+-- @ScriptType: ModuleScript
 local CombatCore = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SkillData = require(ReplicatedStorage:WaitForChild("SkillData"))
@@ -58,9 +59,12 @@ function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
 	elseif targetLimb == "Eyes" then baseDmg = baseDmg * 0.2 end
 
 	-- [[ NEW: SYNERGY PARTY ATTACK ]]
-	-- If a party member already hit this limb this turn, massively multiply damage
+	-- If a DIFFERENT party member already hit this limb, massively multiply damage
+	local synergyOwner = defender.SynergyOwners and defender.SynergyOwners[targetLimb]
 	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] then
-		baseDmg = baseDmg * 2.5
+		if attacker.IsPlayer and synergyOwner ~= attacker.PlayerObj.UserId then
+			baseDmg = baseDmg * 2.5
+		end
 	end
 
 	local effectiveArmor = defArmor * defBuff
@@ -260,7 +264,8 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 	local synergyTag = isSequenceCombo and " <font color='#FFD700'>[SYNERGY: " .. lastAtkSkill .. " -> " .. skillName .. "]</font>" or ""
 
 	-- Check Party Synergy
-	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] then
+	local synergyOwner = defender.SynergyOwners and defender.SynergyOwners[targetLimb]
+	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] and attacker.IsPlayer and synergyOwner ~= attacker.PlayerObj.UserId then
 		synergyTag = synergyTag .. " <font color='#55FFFF'><b>[CO-OP TAKEDOWN!]</b></font>"
 		defender.Statuses["SynergyMark_" .. targetLimb] = nil
 	end
@@ -317,6 +322,26 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 
 			local setBonus = GetSetBonus(defender.PlayerObj)
 			if setBonus and setBonus.DodgeBonus then dodgeChance = dodgeChance + setBonus.DodgeBonus end
+		end
+
+		-- [[ NEW: Titan Size Dodge Penalty ]]
+		local titanNameCheck = ""
+		if not defender.IsPlayer then
+			titanNameCheck = defender.Name or ""
+		elseif defender.Statuses and (tonumber(defender.Statuses.Transformed) or 0) > 0 then
+			titanNameCheck = tostring(defender.Titan or "None")
+		end
+
+		if titanNameCheck ~= "" then
+			if string.find(titanNameCheck, "Founding Titan") or string.find(titanNameCheck, "Colossal") then
+				dodgeChance = dodgeChance - 60 -- Massive size, virtually impossible to passively dodge
+			elseif string.find(titanNameCheck, "Beast Titan") then
+				dodgeChance = dodgeChance - 25 -- Very large/bulky
+			elseif string.find(titanNameCheck, "Armored Titan") then
+				dodgeChance = dodgeChance - 15 -- Heavy armor penalty
+			elseif string.find(titanNameCheck, "Female Titan") then
+				dodgeChance = dodgeChance - 12 -- Slight nerf to Annie's high agility
+			end
 		end
 
 		dodgeChance = math.clamp(dodgeChance or 0, 0, 80)
@@ -491,7 +516,9 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 	-- [[ NEW: Mark limb for Party Synergy Takedown ]]
 	if attacker.IsPlayer and didHitAtAll then
 		if not defender.Statuses then defender.Statuses = {} end
+		if not defender.SynergyOwners then defender.SynergyOwners = {} end
 		defender.Statuses["SynergyMark_" .. targetLimb] = 2 -- Lasts until end of next turn
+		defender.SynergyOwners[targetLimb] = attacker.PlayerObj.UserId
 	end
 
 	local finalMsg = ""
