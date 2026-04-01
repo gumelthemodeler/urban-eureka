@@ -86,7 +86,6 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 	TimerLabel = Instance.new("TextLabel", MainFrame)
 	TimerLabel.Size = UDim2.new(1, 0, 0, 20); TimerLabel.Position = UDim2.new(0, 0, 0, 40); TimerLabel.BackgroundTransparency = 1; TimerLabel.Font = Enum.Font.GothamBold; TimerLabel.TextColor3 = Color3.fromRGB(255, 150, 150); TimerLabel.TextSize = 14; TimerLabel.Text = "CYCLE ENDS IN: Awaiting Intel..."
 
-	-- [[ FIX: Centered Tabs ]]
 	local TopNav = Instance.new("Frame", MainFrame)
 	TopNav.Size = UDim2.new(1, 0, 0, 40); TopNav.Position = UDim2.new(0, 0, 0, 70); TopNav.BackgroundTransparency = 1
 	local navLayout = Instance.new("UIListLayout", TopNav); navLayout.FillDirection = Enum.FillDirection.Horizontal; navLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; navLayout.VerticalAlignment = Enum.VerticalAlignment.Center; navLayout.Padding = UDim.new(0, 10)
@@ -116,20 +115,33 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 	CreateSubNavBtn("Factions", "FACTIONS")
 
 	-- ==========================================
-	-- [[ 1. WAR MAP TAB (Mobile Vertical Layout) ]]
+	-- [[ 1. WAR MAP TAB (Mobile Scroll Layout) ]]
 	-- ==========================================
-	SubTabs["WarMap"] = Instance.new("Frame", ContentArea)
+	SubTabs["WarMap"] = Instance.new("ScrollingFrame", ContentArea)
 	SubTabs["WarMap"].Size = UDim2.new(1, 0, 1, 0); SubTabs["WarMap"].BackgroundTransparency = 1; SubTabs["WarMap"].Visible = true
+	SubTabs["WarMap"].ScrollBarThickness = 0
 
-	-- [[ FIX: Removed Constraints & Used Crop to flawlessly fill the space ]]
+	local wmLayout = Instance.new("UIListLayout", SubTabs["WarMap"])
+	wmLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	wmLayout.Padding = UDim.new(0, 15)
+	wmLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local wmPad = Instance.new("UIPadding", SubTabs["WarMap"])
+	wmPad.PaddingTop = UDim.new(0, 5)
+	wmPad.PaddingBottom = UDim.new(0, 20)
+
+	wmLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() 
+		SubTabs["WarMap"].CanvasSize = UDim2.new(0, 0, 0, wmLayout.AbsoluteContentSize.Y + 30) 
+	end)
+
 	local MapFrame = Instance.new("ImageLabel", SubTabs["WarMap"])
-	MapFrame.Size = UDim2.new(1, 0, 0.52, 0); MapFrame.Position = UDim2.new(0, 0, 0, 0)
+	MapFrame.Size = UDim2.new(0.95, 0, 0, 280)
+	MapFrame.LayoutOrder = 1
 	MapFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15); MapFrame.Image = "rbxassetid://319692171"; MapFrame.ImageColor3 = Color3.fromRGB(80, 100, 150); MapFrame.ImageTransparency = 0.85
-	MapFrame.ScaleType = Enum.ScaleType.Crop
+	MapFrame.ScaleType = Enum.ScaleType.Fit
 	Instance.new("UICorner", MapFrame).CornerRadius = UDim.new(0, 12); Instance.new("UIStroke", MapFrame).Color = Color3.fromRGB(80, 120, 200); MapFrame.UIStroke.Thickness = 2
 	MapFrame.ClipsDescendants = true
 
-	-- [[ FIX: Added Regiment Logo to the Map ]]
 	local PlayerRegLogo = Instance.new("ImageLabel", MapFrame)
 	PlayerRegLogo.Size = UDim2.new(0, 80, 0, 80)
 	PlayerRegLogo.Position = UDim2.new(0, 10, 1, -10)
@@ -165,7 +177,9 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 	end
 
 	local DetailPanel = Instance.new("Frame", SubTabs["WarMap"])
-	DetailPanel.Size = UDim2.new(1, 0, 0.46, 0); DetailPanel.Position = UDim2.new(0, 0, 0.54, 0); DetailPanel.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+	DetailPanel.Size = UDim2.new(0.95, 0, 0, 220)
+	DetailPanel.LayoutOrder = 2
+	DetailPanel.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
 	Instance.new("UICorner", DetailPanel).CornerRadius = UDim.new(0, 8)
 	local dpStroke = Instance.new("UIStroke", DetailPanel); dpStroke.Color = Color3.fromRGB(60, 60, 70); dpStroke.Thickness = 2
 
@@ -174,14 +188,13 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 
 	local dNameLbl = Instance.new("TextLabel", DetailPanel); dNameLbl.Size = UDim2.new(1, -20, 0, 25); dNameLbl.Position = UDim2.new(0, 10, 0, 5); dNameLbl.BackgroundTransparency = 1; dNameLbl.Font = Enum.Font.GothamBlack; dNameLbl.TextColor3 = Color3.fromRGB(255, 215, 100); dNameLbl.TextSize = 18; dNameLbl.TextXAlignment = Enum.TextXAlignment.Left; dNameLbl.Text = "AWAITING INTEL..."
 
-	-- [[ FIX: Enabled RichText so HTML colors work ]]
 	local dBuffLbl = Instance.new("TextLabel", DetailPanel); dBuffLbl.Size = UDim2.new(1, -20, 0, 25); dBuffLbl.Position = UDim2.new(0, 10, 0, 25); dBuffLbl.BackgroundTransparency = 1; dBuffLbl.Font = Enum.Font.GothamBold; dBuffLbl.TextColor3 = Color3.fromRGB(100, 255, 100); dBuffLbl.TextSize = 11; dBuffLbl.TextXAlignment = Enum.TextXAlignment.Left; dBuffLbl.TextYAlignment = Enum.TextYAlignment.Top; dBuffLbl.TextWrapped = true; dBuffLbl.RichText = true; dBuffLbl.Text = "Select a district on the map."
 
 	local BarsFrame = Instance.new("Frame", DetailPanel); BarsFrame.Size = UDim2.new(1, -20, 0, 85); BarsFrame.Position = UDim2.new(0, 10, 0, 45); BarsFrame.BackgroundTransparency = 1
 	local bLayout = Instance.new("UIListLayout", BarsFrame); bLayout.Padding = UDim.new(0, 5)
 
 	local DeployBtn = Instance.new("TextButton", DetailPanel)
-	DeployBtn.Size = UDim2.new(0.8, 0, 0, 40); DeployBtn.Position = UDim2.new(0.5, 0, 1, -5); DeployBtn.AnchorPoint = Vector2.new(0.5, 1); DeployBtn.Font = Enum.Font.GothamBlack; DeployBtn.TextColor3 = Color3.fromRGB(255, 255, 255); DeployBtn.TextSize = 16; DeployBtn.Text = "DEPLOY FORCES"
+	DeployBtn.Size = UDim2.new(0.8, 0, 0, 40); DeployBtn.Position = UDim2.new(0.5, 0, 1, -15); DeployBtn.AnchorPoint = Vector2.new(0.5, 1); DeployBtn.Font = Enum.Font.GothamBlack; DeployBtn.TextColor3 = Color3.fromRGB(255, 255, 255); DeployBtn.TextSize = 16; DeployBtn.Text = "DEPLOY FORCES"
 	ApplyButtonGradient(DeployBtn, Color3.fromRGB(50, 50, 55), Color3.fromRGB(25, 25, 30), Color3.fromRGB(80, 80, 90))
 
 	local dMapNodes = {}
@@ -208,7 +221,6 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 		innerDot.Size = UDim2.new(1, -10, 1, -10); innerDot.Position = UDim2.new(0.5, 0, 0.5, 0); innerDot.AnchorPoint = Vector2.new(0.5, 0.5); innerDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255); innerDot.ZIndex = 10; innerDot.BackgroundTransparency = 0.1
 		Instance.new("UICorner", innerDot).CornerRadius = UDim.new(1, 0)
 
-		-- [[ FIX: Glowing Deployed Marker Icon ]]
 		local deployedMarker = Instance.new("ImageLabel", nodeBtn)
 		deployedMarker.Size = UDim2.new(0, 24, 0, 24)
 		deployedMarker.Position = UDim2.new(0.5, 0, -0.6, 0)
@@ -367,9 +379,6 @@ function RegimentTab.Init(parentFrame, tooltipMgr)
 	fLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SubTabs["Factions"].CanvasSize = UDim2.new(0, 0, 0, fLayout.AbsoluteContentSize.Y + 20) end)
 
 
-	-- ==========================================
-	-- [[ GLOBAL TIMER & VP LOOP ]]
-	-- ==========================================
 	local function FormatTimer()
 		local now = os.time(); local weekSeconds = 604800
 		local nextReset = (math.floor(now / weekSeconds) + 1) * weekSeconds
