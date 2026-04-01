@@ -498,7 +498,8 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 		local aData = CosmeticData.Auras[pAura]
 		if UIAuraManager then
-			UIAuraManager.ApplyAura(AvatarAuraGlow, aData)
+			-- Pass AvatarBox as the 3rd parameter so it can take control of its UIStroke
+			UIAuraManager.ApplyAura(AvatarAuraGlow, aData, AvatarBox)
 		end
 
 		local ls = player:FindFirstChild("leaderstats")
