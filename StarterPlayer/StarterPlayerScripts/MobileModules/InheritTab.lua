@@ -14,7 +14,7 @@ local player = Players.LocalPlayer
 local MainFrame
 local isRolling = { Titan = false, Clan = false }
 local isAutoRolling = { Titan = false, Clan = false }
-local currentRollSeq = { Titan = 0, Clan = 0 } -- [[ FIX: Sequence tracking for failsafes ]]
+local currentRollSeq = { Titan = 0, Clan = 0 }
 
 local RarityColors = {
 	["Common"] = "#AAAAAA", ["Uncommon"] = "#55FF55", ["Rare"] = "#5588FF",
@@ -54,6 +54,41 @@ local function GetRankColor(rank)
 	elseif rank == "B" then return Color3.fromRGB(85, 150, 255)
 	elseif rank == "C" then return Color3.fromRGB(170, 85, 255)
 	else return Color3.fromRGB(170, 170, 170) end
+end
+
+local function PlayMythicLightning()
+	if not MainFrame or not MainFrame.Parent then return end
+
+	local flash = Instance.new("Frame", MainFrame.Parent)
+	flash.Size = UDim2.new(1, 0, 1, 0)
+	flash.BackgroundColor3 = Color3.new(1, 1, 1)
+	flash.BackgroundTransparency = 1
+	flash.ZIndex = 1000
+
+	if EffectsManager and type(EffectsManager.PlaySFX) == "function" then
+		EffectsManager.PlaySFX("Thunder", 1)
+	end
+
+	task.spawn(function()
+		for i = 1, 4 do
+			flash.BackgroundTransparency = 0
+			task.wait(0.05)
+			flash.BackgroundTransparency = 1
+			task.wait(math.random(5, 15)/100)
+		end
+
+		-- [[ FIX: Grab exact original position rather than hardcoding 0.5 ]]
+		local originalPos = MainFrame.Position 
+		for i = 1, 15 do
+			if not MainFrame.Parent then break end
+			local xOffset = math.random(-20, 20)
+			local yOffset = math.random(-20, 20)
+			MainFrame.Position = originalPos + UDim2.new(0, xOffset, 0, yOffset)
+			task.wait(0.03)
+		end
+		MainFrame.Position = originalPos
+		flash:Destroy()
+	end)
 end
 
 function InheritTab.Init(parentFrame, tooltipMgr)
@@ -278,6 +313,12 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 
 	Network.GachaResult.OnClientEvent:Connect(function(gType, resultName, resultRarity)
 		if resultName == "Error" then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI(); if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Error", 1) end return end
+
+		-- [[ NEW: Trigger Lightning Sequence for Mythics/Transcendents ]]
+		if resultRarity == "Mythical" or resultRarity == "Transcendent" then
+			PlayMythicLightning()
+			task.wait(1.5) -- Wait for lightning to finish striking
+		end
 
 		local targetLbl = (gType == "Titan") and tResult or cResult
 		local names = {}
