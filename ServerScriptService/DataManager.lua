@@ -209,8 +209,13 @@ pcall(function()
 	end)
 end)
 
+local AdminManager = require(ReplicatedStorage:WaitForChild("AdminManager"))
+
 RemotesFolder.AdminCommand.OnServerEvent:Connect(function(player, command, targetName, args)
-	if player.UserId ~= 4068160397 and player.Name ~= "girthbender1209" or player.UserID ~= 4608697584 then player:Kick("Unauthorized Admin Access"); return end
+	if not AdminManager.IsAdmin(player) then
+		player:Kick("Unauthorized Admin Access")
+		return
+	end
 
 	if command == "GlobalRollback" then
 		pcall(function() MessagingService:PublishAsync("GlobalDataRollback", "Initiate") end)
