@@ -37,6 +37,39 @@ local SellValues = { Common = 10, Uncommon = 25, Rare = 75, Epic = 200, Legendar
 local TEXT_COLORS = { PrestigeYellow = "#FFD700", EloBlue = "#55AAFF", DefaultGreen = "#55FF55" }
 local REG_COLORS = { ["Garrison"] = "#FF5555", ["Military Police"] = "#55FF55", ["Scout Regiment"] = "#55AAFF" }
 
+-- [[ NEW: Cosmetics Tracker Cache ]]
+local UnlockedCosmeticsCache = { Titles = {}, Auras = {} }
+local CosmeticUIUpdaters = {}
+
+task.spawn(function()
+	player:WaitForChild("leaderstats", 10)
+	for key, data in pairs(CosmeticData.Titles) do UnlockedCosmeticsCache.Titles[key] = CosmeticData.CheckUnlock(player, data.ReqType, data.ReqValue) end
+	for key, data in pairs(CosmeticData.Auras) do UnlockedCosmeticsCache.Auras[key] = CosmeticData.CheckUnlock(player, data.ReqType, data.ReqValue) end
+end)
+
+local function EvaluateCosmeticUnlocks()
+	-- Check Titles
+	for key, data in pairs(CosmeticData.Titles) do
+		if not UnlockedCosmeticsCache.Titles[key] then
+			if CosmeticData.CheckUnlock(player, data.ReqType, data.ReqValue) then
+				UnlockedCosmeticsCache.Titles[key] = true
+				if NotificationManager then NotificationManager.Show("New Title Unlocked: " .. data.Name, "Success") end
+			end
+		end
+	end
+	-- Check Auras
+	for key, data in pairs(CosmeticData.Auras) do
+		if not UnlockedCosmeticsCache.Auras[key] then
+			if CosmeticData.CheckUnlock(player, data.ReqType, data.ReqValue) then
+				UnlockedCosmeticsCache.Auras[key] = true
+				if NotificationManager then NotificationManager.Show("New Aura Unlocked: " .. data.Name, "Success") end
+			end
+		end
+	end
+	-- Force UI Buttons to update
+	for _, updater in ipairs(CosmeticUIUpdaters) do updater() end
+end
+
 local function ApplyGradient(label, color1, color2)
 	local grad = Instance.new("UIGradient", label)
 	grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, color1), ColorSequenceKeypoint.new(1, color2)}
@@ -137,7 +170,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 	AvatarTitle = Instance.new("TextLabel", ShowcaseCard)
 	AvatarTitle.Size = UDim2.new(1, 0, 0, 25); AvatarTitle.BackgroundTransparency = 1; AvatarTitle.Font = Enum.Font.GothamBlack; AvatarTitle.TextColor3 = Color3.fromRGB(255, 255, 255); AvatarTitle.TextSize = 16; AvatarTitle.Text = "104TH CADET"; AvatarTitle.LayoutOrder = 1; AvatarTitle.ZIndex = 10
 
-	-- [[ FIX: Horizontal Container for side-by-side display ]]
 	local AvatarRow = Instance.new("Frame", ShowcaseCard)
 	AvatarRow.Size = UDim2.new(1, 0, 0, 120); AvatarRow.BackgroundTransparency = 1; AvatarRow.LayoutOrder = 2
 	local arLayout = Instance.new("UIListLayout", AvatarRow); arLayout.FillDirection = Enum.FillDirection.Horizontal; arLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; arLayout.VerticalAlignment = Enum.VerticalAlignment.Center; arLayout.Padding = UDim.new(0, 20)
@@ -411,11 +443,11 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 				end
 			end
 
+			-- Save updater to table so the tracker can call it
+			table.insert(CosmeticUIUpdaters, UpdateState)
+
 			btn.MouseButton1Click:Connect(function()
 				if CosmeticData.CheckUnlock(player, item.Data.ReqType, item.Data.ReqValue) then Network.EquipCosmetic:FireServer(typeKey, item.Key) end
-			end)
-			player.AttributeChanged:Connect(function(attr)
-				if attr == "Equipped"..typeKey or attr == "Prestige" or attr == "Elo" or string.match(attr, "^Ach_") or attr == "Titan" then UpdateState() end
 			end)
 			UpdateState()
 		end
@@ -498,7 +530,6 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 
 		local aData = CosmeticData.Auras[pAura]
 		if UIAuraManager then
-			-- Pass AvatarBox as the 3rd parameter so it can take control of its UIStroke
 			UIAuraManager.ApplyAura(AvatarAuraGlow, aData, AvatarBox)
 		end
 
@@ -779,10 +810,32 @@ function ProfileTab.Init(parentFrame, tooltipMgr)
 		if currentSlotsUsed >= MAX_INVENTORY_CAPACITY then InvTitle.TextColor3 = Color3.fromRGB(255, 100, 100) else InvTitle.TextColor3 = Color3.fromRGB(255, 215, 100) end
 	end
 
-	player.AttributeChanged:Connect(RefreshProfile)
+	-- [[ NEW: Event Listeners for Cosmetic Tracker ]]
+	player.AttributeChanged:Connect(function(attr)
+		if string.match(attr, "^Ach_") or attr == "Titan" or string.match(attr, "^Equipped") then
+			EvaluateCosmeticUnlocks()
+		end
+		RefreshProfile()
+	end)
 
 	task.spawn(function()
+		local leaderstats = player:WaitForChild("leaderstats", 10)
+		if leaderstats then
+			for _, child in ipairs(leaderstats:GetChildren()) do
+				if child:IsA("IntValue") then
+					child.Changed:Connect(function()
+						if child.Name == "Prestige" or child.Name == "Elo" then
+							EvaluateCosmeticUnlocks()
+						end
+						RefreshProfile()
+					end)
+				end
+			end
+		end
 		RefreshProfile()
+	end)
+
+	task.spawn(function()
 		local cGrad = SubBtns["Inventory"]:FindFirstChildOfClass("UIGradient")
 		if cGrad then TweenGradient(cGrad, Color3.fromRGB(200, 150, 40), Color3.fromRGB(120, 80, 15), 0) end
 		TweenService:Create(SubBtns["Inventory"], TweenInfo.new(0), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
