@@ -33,6 +33,9 @@ local fuseBtn
 local RecipeList, CraftInvGrid
 local VaultList
 
+local currentInvFilter = "All"
+local FilterBtns = {}
+
 local RarityColors = { ["Common"] = "#AAAAAA", ["Uncommon"] = "#55FF55", ["Rare"] = "#5588FF", ["Epic"] = "#CC44FF", ["Legendary"] = "#FFD700", ["Mythical"] = "#FF3333", ["Transcendent"] = "#FF55FF" }
 local RarityOrder = { Transcendent = 0, Mythical = 1, Legendary = 2, Epic = 3, Rare = 4, Uncommon = 5, Common = 6 }
 
@@ -53,12 +56,11 @@ end
 
 local function ApplyButtonGradient(btn, topColor, botColor, strokeColor)
 	btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	local grad = btn:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient", btn)
-	grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, topColor), ColorSequenceKeypoint.new(1, botColor)}; grad.Rotation = 90
+	btn.AutoButtonColor = false 
+	local grad = btn:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient", btn); grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, topColor), ColorSequenceKeypoint.new(1, botColor)}; grad.Rotation = 90
 	local corner = btn:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", btn); corner.CornerRadius = UDim.new(0, 4)
 	if strokeColor then
-		local stroke = btn:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", btn)
-		stroke.Color = strokeColor; stroke.Thickness = 1; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.LineJoinMode = Enum.LineJoinMode.Miter
+		local stroke = btn:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", btn); stroke.Color = strokeColor; stroke.Thickness = 1; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	end
 	if not btn:GetAttribute("GradientTextFixed") then
 		btn:SetAttribute("GradientTextFixed", true)
@@ -71,7 +73,6 @@ local function ApplyButtonGradient(btn, topColor, botColor, strokeColor)
 		btn:GetPropertyChangedSignal("Text"):Connect(function() if btn.Text ~= "" then textLbl.Text = btn.Text; btn.Text = "" end end)
 		btn:GetPropertyChangedSignal("TextColor3"):Connect(function() textLbl.TextColor3 = btn.TextColor3 end)
 		btn:GetPropertyChangedSignal("RichText"):Connect(function() textLbl.RichText = btn.RichText end)
-		btn:GetPropertyChangedSignal("TextSize"):Connect(function() textLbl.TextSize = btn.TextSize end)
 	end
 end
 
@@ -108,7 +109,7 @@ local function CreateStationSquare(parent, rarityColor, isDews, lOrder)
 end
 
 local function CreateMathSym(parent, sym, lOrder)
-	local lbl = Instance.new("TextLabel", parent); lbl.Size = UDim2.new(0, 15, 0, 70); lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBlack; lbl.TextColor3 = Color3.fromRGB(150, 150, 150); lbl.TextSize = 20; lbl.Text = sym; lbl.LayoutOrder = lOrder
+	local lbl = Instance.new("TextLabel", parent); lbl.Size = UDim2.new(0, 20, 1, 0); lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBlack; lbl.TextColor3 = Color3.fromRGB(150, 150, 150); lbl.TextSize = 24; lbl.Text = sym; lbl.LayoutOrder = lOrder
 	return lbl
 end
 
@@ -181,7 +182,7 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 	fPlaceholder.Size = UDim2.new(1, 0, 1, 0); fPlaceholder.BackgroundTransparency = 1; fPlaceholder.Font = Enum.Font.GothamMedium; fPlaceholder.TextColor3 = Color3.fromRGB(150, 150, 150); fPlaceholder.TextSize = 12; fPlaceholder.Text = "Select a Blueprint below to view its formula."
 
 	craftBtn = Instance.new("TextButton", WorkbenchPanel)
-	craftBtn.Size = UDim2.new(0.8, 0, 0, 35); craftBtn.Position = UDim2.new(0.1, 0, 1, -45); craftBtn.Font = Enum.Font.GothamBlack; craftBtn.TextColor3 = Color3.fromRGB(255, 255, 255); craftBtn.TextSize = 14; craftBtn.Text = "SELECT BLUEPRINT"
+	craftBtn.Size = UDim2.new(0.8, 0, 0, 35); craftBtn.Position = UDim2.new(0.5, 0, 1, -10); craftBtn.AnchorPoint = Vector2.new(0.5, 1); craftBtn.Font = Enum.Font.GothamBlack; craftBtn.TextColor3 = Color3.fromRGB(255, 255, 255); craftBtn.TextSize = 14; craftBtn.Text = "SELECT BLUEPRINT"
 	ApplyButtonGradient(craftBtn, Color3.fromRGB(50, 50, 55), Color3.fromRGB(25, 25, 30), Color3.fromRGB(80, 80, 90))
 
 	craftBtn.MouseButton1Click:Connect(function()
@@ -200,9 +201,39 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 	local InvTitleLbl = Instance.new("TextLabel", SubTabs["Crafting"])
 	InvTitleLbl.Size = UDim2.new(0.95, 0, 0, 30); InvTitleLbl.BackgroundTransparency = 1; InvTitleLbl.Font = Enum.Font.GothamBlack; InvTitleLbl.TextColor3 = Color3.fromRGB(255, 215, 100); InvTitleLbl.TextSize = 16; InvTitleLbl.Text = "YOUR INVENTORY"; InvTitleLbl.LayoutOrder = 4
 
+	local FilterFrame = Instance.new("Frame", SubTabs["Crafting"])
+	FilterFrame.Size = UDim2.new(0.95, 0, 0, 35); FilterFrame.BackgroundTransparency = 1; FilterFrame.LayoutOrder = 5
+	local ffLayout = Instance.new("UIListLayout", FilterFrame); ffLayout.FillDirection = Enum.FillDirection.Horizontal; ffLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; ffLayout.Padding = UDim.new(0, 10)
+
+	local RenderCrafting 
+	local function MakeFilterBtn(id, text)
+		local btn = Instance.new("TextButton", FilterFrame)
+		btn.Size = UDim2.new(0.31, 0, 1, 0); btn.Font = Enum.Font.GothamBold; btn.TextColor3 = Color3.fromRGB(150, 150, 150); btn.TextSize = 11; btn.Text = text
+		ApplyButtonGradient(btn, Color3.fromRGB(30, 30, 35), Color3.fromRGB(15, 15, 20), Color3.fromRGB(60, 60, 70))
+
+		btn.MouseButton1Click:Connect(function()
+			currentInvFilter = id
+			for k, v in pairs(FilterBtns) do
+				ApplyButtonGradient(v, Color3.fromRGB(30, 30, 35), Color3.fromRGB(15, 15, 20), Color3.fromRGB(60, 60, 70))
+				v.TextColor3 = Color3.fromRGB(150, 150, 150)
+			end
+			ApplyButtonGradient(btn, Color3.fromRGB(60, 140, 60), Color3.fromRGB(30, 80, 30), Color3.fromRGB(80, 180, 80))
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			if RenderCrafting then RenderCrafting() end
+		end)
+		FilterBtns[id] = btn
+		return btn
+	end
+
+	MakeFilterBtn("All", "ALL")
+	MakeFilterBtn("Gear", "GEAR")
+	MakeFilterBtn("Items", "ITEMS")
+	ApplyButtonGradient(FilterBtns["All"], Color3.fromRGB(60, 140, 60), Color3.fromRGB(30, 80, 30), Color3.fromRGB(80, 180, 80))
+	FilterBtns["All"].TextColor3 = Color3.fromRGB(255, 255, 255)
+
 	CraftInvGrid = Instance.new("Frame", SubTabs["Crafting"])
-	CraftInvGrid.Size = UDim2.new(0.95, 0, 0, 0); CraftInvGrid.BackgroundColor3 = Color3.fromRGB(20, 20, 25); CraftInvGrid.LayoutOrder = 5
-	local cigLayout = Instance.new("UIGridLayout", CraftInvGrid); cigLayout.CellSize = UDim2.new(0.22, 0, 0, 75); cigLayout.CellPadding = UDim2.new(0.04, 0, 0, 10); cigLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; cigLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	CraftInvGrid.Size = UDim2.new(0.95, 0, 0, 0); CraftInvGrid.BackgroundColor3 = Color3.fromRGB(20, 20, 25); CraftInvGrid.LayoutOrder = 6
+	local cigLayout = Instance.new("UIGridLayout", CraftInvGrid); cigLayout.CellSize = UDim2.new(0, 75, 0, 75); cigLayout.CellPadding = UDim2.new(0, 10, 0, 15); cigLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; cigLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	local cigPad = Instance.new("UIPadding", CraftInvGrid); cigPad.PaddingTop = UDim.new(0, 15); cigPad.PaddingBottom = UDim.new(0, 15)
 	Instance.new("UICorner", CraftInvGrid).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", CraftInvGrid).Color = Color3.fromRGB(80, 80, 90)
 
@@ -261,7 +292,7 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 		end
 	end
 
-	local function RenderCrafting()
+	RenderCrafting = function()
 		for _, child in ipairs(RecipeList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
 		for recipeName, recipe in pairs(ItemData.ForgeRecipes) do
 			local resData = ItemData.Equipment[recipe.Result] or ItemData.Consumables[recipe.Result]
@@ -270,10 +301,7 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 			local canCraft = true
 			for reqName, reqAmt in pairs(recipe.ReqItems) do
 				local safeReq = reqName:gsub("[^%w]", "") .. "Count"
-				if (player:GetAttribute(safeReq) or 0) < reqAmt then
-					canCraft = false
-					break
-				end
+				if (player:GetAttribute(safeReq) or 0) < reqAmt then canCraft = false; break end
 			end
 			local pDews = player.leaderstats and player.leaderstats:FindFirstChild("Dews") and player.leaderstats.Dews.Value or 0
 			if pDews < recipe.DewCost then canCraft = false end
@@ -302,8 +330,13 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 
 		for _, child in ipairs(CraftInvGrid:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
 		local invItems = {}
-		for iName, iData in pairs(ItemData.Equipment) do table.insert(invItems, {Name = iName, Data = iData}) end
-		for iName, iData in pairs(ItemData.Consumables) do table.insert(invItems, {Name = iName, Data = iData}) end
+
+		for iName, iData in pairs(ItemData.Equipment) do 
+			if currentInvFilter == "All" or currentInvFilter == "Gear" then table.insert(invItems, {Name = iName, Data = iData}) end
+		end
+		for iName, iData in pairs(ItemData.Consumables) do 
+			if currentInvFilter == "All" or currentInvFilter == "Items" then table.insert(invItems, {Name = iName, Data = iData}) end
+		end
 		table.sort(invItems, function(a, b) local rA = RarityOrder[a.Data.Rarity or "Common"] or 7; local rB = RarityOrder[b.Data.Rarity or "Common"] or 7; if rA == rB then return a.Name < b.Name else return rA < rB end end)
 
 		local lOrder = 1
@@ -345,7 +378,6 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 
 		task.delay(0.05, function() SubTabs["Crafting"].CanvasSize = UDim2.new(0, 0, 0, 170 + recLayout.AbsoluteContentSize.Y + cigLayout.AbsoluteContentSize.Y + 120) end)
 	end
-
 
 	-- ==========================================
 	-- [[ 2. AWAKENING TAB ]]
@@ -475,7 +507,7 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 		if selectedFusionBase and selectedFusionSacrifice then 
 			local baseTitan = player:GetAttribute(selectedFusionBase == "Equipped" and "Titan" or ("Titan_Slot" .. selectedFusionBase)) or "None"
 			local sacTitan = player:GetAttribute(selectedFusionSacrifice == "Equipped" and "Titan" or ("Titan_Slot" .. selectedFusionSacrifice)) or "None"
-			expectedFusionResult = FusionRecipes[baseTitan] and FusionRecipes[baseTitan][sacTitan]
+			local expectedFusionResult = FusionRecipes[baseTitan] and FusionRecipes[baseTitan][sacTitan]
 			Network:WaitForChild("FuseTitan"):FireServer(selectedFusionBase, selectedFusionSacrifice)
 			selectedFusionBase = nil; selectedFusionSacrifice = nil; fusionState = "Base"
 		end
@@ -615,18 +647,7 @@ function ForgeTab.Init(parentFrame, tooltipMgr)
 		end
 	end
 
-	-- ==========================================
-	-- [[ GLOBAL REFRESH LOGIC ]]
-	-- ==========================================
 	player.AttributeChanged:Connect(function(attr)
-		if attr == "Titan" and expectedFusionResult then
-			local newTitan = player:GetAttribute("Titan")
-			if newTitan == expectedFusionResult then
-				CinematicManager.Show("TITAN FUSED", newTitan, "#FFD700")
-			end
-			expectedFusionResult = nil
-		end
-
 		if string.match(attr, "Count$") or string.match(attr, "_Awakened$") or string.match(attr, "^Titan") then
 			RenderCrafting()
 			RenderAwakening()
